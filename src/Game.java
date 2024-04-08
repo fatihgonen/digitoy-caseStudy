@@ -15,72 +15,67 @@ public class Game {
 
     public void distributeTiles() {
         // First player gets 15 tiles, others get 14
+        System.out.println("Distributing tiles...");
         for (int i = 0; i < 15; i++) {
             players[0].receiveTile(deck.draw());
         }
+        System.out.println("Player " + players[0].getPlayerNumber() + "'s hand: " + players[0].getHand());
         for (int j = 1; j < players.length; j++) {
             for (int i = 0; i < 14; i++) {
                 players[j].receiveTile(deck.draw());
             }
+            System.out.println("Player " + players[j].getPlayerNumber() + "'s hand: " + players[j].getHand());
         }
     }
 
     public void start() {
         distributeTiles();
-        // Other game logic here
     }
 
     public void evaluateHands() {
         int minUngroupedTiles = Integer.MAX_VALUE;
         Player closestPlayer = null;
-        List<Tile> closestPlayerHandSorted = null;
+        EvaluationResult bestResult = null;
 
         for (Player player : players) {
-            List<Tile> hand = new ArrayList<>(player.getHand()); // Make a copy of the hand to sort
-            int ungroupedTiles = calculateOptimalArrangement(hand);
+            List<Tile> hand = new ArrayList<>(player.getHand());
+            EvaluationResult result = calculateOptimalArrangement(hand);
 
-            System.out.println("Player " + player.playerNumber + " has hand: " + hand);
+            System.out.println("Player " + player.getPlayerNumber() + "'s optimal arrangement: " + result);
 
-            // Sort the hand
-            Collections.sort(hand, (a, b) -> {
-                if (a.getColor().equals(b.getColor())) {
-                    return Integer.compare(a.getNumber(), b.getNumber());
-                }
-                return a.getColor().compareTo(b.getColor());
-            });
-            // Print the sorted hand
-            System.out.println("Evaluating hand for player "+ player.playerNumber + ": ");
-            System.out.println("Player " + player.playerNumber + " has " + ungroupedTiles + " ungrouped tiles.");
-            System.out.println("Sorted hand: " + hand);
-
-            // Determine the player closest to winning
-            if (ungroupedTiles < minUngroupedTiles) {
-                minUngroupedTiles = ungroupedTiles;
+            if (result.getUngroupedTiles() < minUngroupedTiles) {
+                minUngroupedTiles = result.getUngroupedTiles();
                 closestPlayer = player;
-                closestPlayerHandSorted = new ArrayList<>(hand); // Keep a sorted copy of the closest hand
+                bestResult = result;
             }
         }
-        // Print the player who is closest to winning
+
         if (closestPlayer != null) {
-            System.out.println("\nPlayer closest to winning: Player " + closestPlayer.playerNumber +" with cards " +
-                    closestPlayerHandSorted + " with " + minUngroupedTiles + " ungrouped tiles.");
+            System.out.println("\nPlayer closest to winning: Player " + closestPlayer.getPlayerNumber() +
+                    " with optimal hand configuration: " + bestResult);
         }
     }
 
-    private int calculateOptimalArrangement(List<Tile> hand) {
+    private EvaluationResult calculateOptimalArrangement(List<Tile> hand) {
         int jokerCount = (int) hand.stream().filter(Tile::isJoker).count();
         List<Tile> nonJokerTiles = hand.stream().filter(t -> !t.isJoker()).collect(Collectors.toList());
         List<List<Tile>> allCombinations = generateAllCombinations(nonJokerTiles);
         int minUngroupedTiles = nonJokerTiles.size(); // Worst case: all non-joker tiles are ungrouped
+        List<List<Tile>> bestGroups = new ArrayList<>();
 
         for (List<Tile> combination : allCombinations) {
             if (isRun(combination, jokerCount) || isSet(combination, jokerCount)) {
                 int groupedTiles = combination.size();
                 int ungroupedTiles = nonJokerTiles.size() - groupedTiles;
-                minUngroupedTiles = Math.min(minUngroupedTiles, ungroupedTiles);
+                if (ungroupedTiles < minUngroupedTiles) {
+                    minUngroupedTiles = ungroupedTiles;
+                    bestGroups.clear();
+                    bestGroups.add(new ArrayList<>(combination)); // Store the best group found
+                }
             }
         }
-        return minUngroupedTiles;
+
+        return new EvaluationResult(bestGroups, minUngroupedTiles);
     }
 
     private List<List<Tile>> generateAllCombinations(List<Tile> tiles) {

@@ -22,5 +22,7 @@ public class Player {
         return hand;
     }
 
-
+    public int getPlayerNumber() {
+        return playerNumber;
+    }
 }
